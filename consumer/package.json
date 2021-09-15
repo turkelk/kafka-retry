@@ -1,0 +1,15 @@
+{
+  "name": "kafkajs-consumer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "consumer.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node consumer.js"
+  },
+  "author": "Turkel Gadirzade",
+  "license": "ISC",
+  "dependencies": {
+    "kafkajs": "^1.15.0"
+  }
+}
