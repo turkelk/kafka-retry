@@ -12,31 +12,14 @@ docker-compose exec mongo1 /usr/bin/mongo --eval '''if (rs.status()["ok"] == 0) 
       ]
     };
     rs.initiate(rsconf);
-    rs.secondaryOk();
 }
-rs.conf();'''
+rs.conf();rs.slaveOk();'''
 
 echo -e "\nKafka Topics:"
 curl -X GET "http://localhost:8082/topics" -w "\n"
 
 echo -e "\nKafka Connectors:"
 curl -X GET "http://localhost:8083/connectors/" -w "\n"
-
-# echo -e "\nAdding datagen pageviews:"
-# curl -X POST -H "Content-Type: application/json" --data '
-#   { "name": "datagen-pageviews",
-#     "config": {
-#       "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
-#       "kafka.topic": "pageviews",
-#       "quickstart": "pageviews",
-#       "key.converter": "org.apache.kafka.connect.json.JsonConverter",
-#       "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-#       "value.converter.schemas.enable": "false",
-#       "producer.interceptor.classes": "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor",
-#       "max.interval": 200,
-#       "iterations": 10000000,
-#       "tasks.max": "1"
-# }}' http://localhost:8083/connectors -w "\n"
 
 sleep 5
 
@@ -53,11 +36,10 @@ curl -X POST -H "Content-Type: application/json" --data '
      "key.converter": "org.apache.kafka.connect.storage.StringConverter",
      "value.converter": "org.apache.kafka.connect.json.JsonConverter",
      "value.converter.schemas.enable": "false",
-     "timeseries.expire.after.seconds":"100",
      "mongo.errors.tolerance":"all",
      "mongo.errors.log.enable": "true",
      "errors.log.include.messages":"true",
-     "errors.deadletterqueue.topic.name": "test-dlq"
+     "errors.deadletterqueue.topic.name": "test-dlq",
      "errors.deadletterqueue.context.headers.enable": "true"
 }}' http://localhost:8083/connectors -w "\n"
 
@@ -70,9 +52,10 @@ curl -X POST -H "Content-Type: application/json" --data '
      "tasks.max":"1",
      "connector.class":"com.mongodb.kafka.connect.MongoSourceConnector",
      "connection.uri":"mongodb://mongo1:27017",
-     "topic.prefix":"mongo",
+     "topic.prefix":"mongo_",
      "database":"test",
-     "collection":"retry"
+     "collection":"retry",
+     "pipeline":"[{\"$match\": { \"operationType\": \"delete\"}}]"
 }}' http://localhost:8083/connectors -w "\n"    
 
 sleep 2

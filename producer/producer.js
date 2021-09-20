@@ -29,7 +29,7 @@ async function produce(message) {
         const message = messages[random];
         console.log("sending message", message);
         await produce(message);
-        await sleep(5000);
+        await sleep(10000);
     }
 })();
 

@@ -6,73 +6,64 @@ const kafka = new Kafka({
 });
 
 const consumer = kafka.consumer({ groupId: 'test-group' });
+const consumerHandler = require('./manager');
+const config = { messageHandleTimeoutInSeconds: 20 };
 
-// const { HEARTBEAT } = consumer.events;
-// const removeListener = consumer.on(HEARTBEAT, e => console.log(`heartbeat at ${e.timestamp}`))
-
-const config = { "maxRetry": 3, "retryQueue": "test-retry", "delayDurationInMs": 1000, "dlq": "test-dlq" };
-
-const sendToTopic = async (message, fromTopic, partition, toTopic, reason) => {
-
-    console.log("sending message", message.value.toString(), fromTopic, toTopic, partition, reason);
-
-    let msg = { "key": message.key.toString(), "value": message.value.toString(), "headers": message.headers };
-
-    msg.headers.x_offset = message.offset.toString();
-    msg.headers.x_topic = fromTopic;
-    msg.headers.x_partition = partition.toString();
-    msg.headers.x_delay_duration = config.delayDurationInMs.toString();
-    msg.headers.x_reason = reason;
-
-    const { x_retry_count } = message.headers;
-
-    if (x_retry_count) {
-        let count = parseInt(x_retry_count);
-        count++;
-        msg.headers.x_retry_count = count.toString();
-    } else {
-        msg.headers.x_retry_count = "1";
-    }
-
-    console.log("sending message to topic", msg, toTopic);
-
-    const producer = kafka.producer();
-
-    await producer.connect();
-    await producer.send({
-        topic: toTopic,
-        messages: [msg],
-    });
-    await producer.disconnect();
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 };
 
-const handleRetry = async (message, topic, partition, reason) => {
+// example handler....
+const handleMessage = async (message) => {
+    let msgVal = JSON.parse(message.value.toString());
 
-    console.log("retrying, message, topic, partition, reason", message.value.toString(), topic, partition, reason);
+    switch (msgVal.messageType) {
+        case "normal":
+            return Promise.resolve({
+                retry: false,
+                code: "success",
+                isSuccess: true,
+                message: "completed successfully"
+            });
+        case "retry":
+            return Promise.resolve({
+                retry: true,
+                code: "retry_message",
+                isSuccess: false,
+                message: "message is retry"
+            });
+        case "long-running":
 
-    const { x_retry_count } = message.headers;
+            await sleep(config.messageHandleTimeoutInSeconds + 5);
 
-    console.log("handleRetry x_retry_count is", x_retry_count);
+            return Promise.resolve({
+                retry: false,
+                code: "success",
+                isSuccess: true,
+                message: "completed successfully"
+            });
+        case "dlq":
+            return Promise.resolve({
+                retry: false,
+                code: "dlq_message",
+                isSuccess: false,
+                message: "message is dlq message"
+            })
 
-    if (x_retry_count) {
-        if (x_retry_count >= config.maxRetry) {
-            await handleDLQ(message, topic, partition, "number of retry exceeded");
-            return;
-        }
-    }
-    console.log("retrying, sending to topic", topic);
-    await sendToTopic(message, topic, partition, config.retryQueue, "reasonMessage");
-};
-
-const handleDLQ = async (message, topic, partition, reason) => {
-    await sendToTopic(message, topic, partition, config.dlq, reason);
+        default:
+            return Promise.resolve({
+                retry: false,
+                code: "success",
+                isSuccess: true,
+                message: "completed successfully"
+            });
+    };
 };
 
 (async function run() {
     await consumer.connect();
     await consumer.subscribe({ topic: 'test', fromBeginning: false });
     await consumer.subscribe({ topic: 'test-retry', fromBeginning: false });
-    // await consumer.subscribe({ topic: 'test-dlq', fromBeginning: false });
 
     consumer.run({
 
@@ -82,18 +73,20 @@ const handleDLQ = async (message, topic, partition, reason) => {
 
             for (let message of batch.messages) {
                 if (!isRunning() || isStale()) break;
-                let msgVal = JSON.parse(message.value.toString());
-                if (msgVal.messageType === "retry")
-                    await handleRetry(message, batch.topic, batch.partition, "message is retry");
-                if (msgVal.messageType === "dlq") {
-                    await handleDLQ(message, batch.topic, batch.partition, "message is dlq");
+
+                const consumerContext = {
+                    timeoutInSeconds: config.messageHandleTimeoutInSeconds,
+                    messageHandler: handleMessage,
+                    resolveOffset,
+                    heartbeat,
+                    message,
+                    topic: batch.topic,
+                    partition: batch.partition
                 }
-                resolveOffset(message.offset);
-                await heartbeat();
+                consumerHandler.handle(consumerContext, (result) => {
+                    console.log("consumerHandler.handle is", result);
+                });
             }
         }
     });
 })();
-
-
-
