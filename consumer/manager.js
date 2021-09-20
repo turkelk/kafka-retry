@@ -23,11 +23,16 @@ const sendToTopic = async (message, source, partition, destination) => {
 
     const producer = kafka.producer();
 
+
+
     await producer.connect();
     await producer.send({
         topic: destination,
         messages: [msg],
     });
+    
+    console.log(`message sent to ${destination}`);
+
     await producer.disconnect();
 };
 
@@ -45,7 +50,7 @@ const sendToRetryQueue = async (consumerContext) => {
         message.headers.x_retry_count = "1";
     }
 
-    await sendToTopic(message, topic, partition, topic + "-retry");
+    await sendToTopic(message, topic, partition, topic == topic + "-retry" ? topic : topic + "-retry" );
 };
 
 const sendToDLQ = async (consumerContext) => {

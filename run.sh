@@ -52,10 +52,9 @@ curl -X POST -H "Content-Type: application/json" --data '
      "tasks.max":"1",
      "connector.class":"com.mongodb.kafka.connect.MongoSourceConnector",
      "connection.uri":"mongodb://mongo1:27017",
-     "topic.prefix":"mongo_",
+     "topic.prefix":"mongo",
      "database":"test",
-     "collection":"retry",
-     "pipeline":"[{\"$match\": { \"operationType\": \"delete\"}}]"
+     "collection":"retry"
 }}' http://localhost:8083/connectors -w "\n"    
 
 sleep 2
