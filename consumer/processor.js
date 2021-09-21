@@ -22,8 +22,12 @@ const sendToTopic = async (message, source, partition, destination) => {
         value: ""
     };
     
-    var expireAt = new Date();
-    expireAt.setTime(expireAt.getTime() - delayInMs);
+    // var expireAt = new Date();
+    // expireAt.setTime(expireAt.getTime() + delayInMs);
+
+    // var d = new Date();
+    // d.setDate(reqDate.getDate() + 1);
+    // var expireAtISO = moment(expireAt).format('YYYY-MM-DD[T00:00:00.000Z]');    
 
     let value = {
         payload: message.value.toString(),
@@ -34,12 +38,14 @@ const sendToTopic = async (message, source, partition, destination) => {
             delay: delayInMs,
             retryCount: 0
         },
-        expireAt: Date.now()//moment(expireAt).format('YYYY-MM-DD[T00:00:00.000Z]')
+        expireAt: Date.now()//expireAt.toISOString().toString()//new Date(Date.now()).toISOString()//Date.now()//moment(expireAt).format('YYYY-MM-DD[T00:00:00.000Z]')
     }
 
     msg.value = JSON.stringify(value);
 
     const producer = kafka.producer();
+
+    console.log("sending message", msg);
 
     await producer.connect();
     await producer.send({
