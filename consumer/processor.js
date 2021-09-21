@@ -1,3 +1,4 @@
+const moment = require('moment');
 const { Kafka } = require('kafkajs');
 
 const kafka = new Kafka({
@@ -12,26 +13,41 @@ const RESULT = {
     ERROR: "unexpected_error"
 }
 
+const delayInMs = 10000; // from env
+
 const sendToTopic = async (message, source, partition, destination) => {
 
-    let msg = { "key": message.key.toString(), "value": message.value.toString(), "headers": message.headers };
+    let msg = {
+        key: message.key.toString(),
+        value: ""
+    };
+    
+    var expireAt = new Date();
+    expireAt.setTime(expireAt.getTime() - delayInMs);
 
-    msg.headers.x_offset = message.offset.toString();
-    msg.headers.x_topic = source;
-    msg.headers.x_partition = partition.toString();
-    msg.headers.x_delay_ms = "10000" // from env;
+    let value = {
+        payload: message.value.toString(),
+        headers: {
+            offset: message.offset,
+            source: source,
+            partition: partition,
+            delay: delayInMs,
+            retryCount: 0
+        },
+        expireAt: Date.now()//moment(expireAt).format('YYYY-MM-DD[T00:00:00.000Z]')
+    }
+
+    msg.value = JSON.stringify(value);
 
     const producer = kafka.producer();
-
-
 
     await producer.connect();
     await producer.send({
         topic: destination,
         messages: [msg],
     });
-    
-    console.log(`message sent to ${destination}`);
+
+    console.log(`message ${msg} sent to ${destination}`);
 
     await producer.disconnect();
 };
@@ -50,7 +66,7 @@ const sendToRetryQueue = async (consumerContext) => {
         message.headers.x_retry_count = "1";
     }
 
-    await sendToTopic(message, topic, partition, topic == topic + "-retry" ? topic : topic + "-retry" );
+    await sendToTopic(message, topic, partition, topic == topic + "-retry" ? topic : topic + "-retry");
 };
 
 const sendToDLQ = async (consumerContext) => {
@@ -112,7 +128,7 @@ const handleResult = async (result, consumerContext) => {
     }
 };
 
-const handle = async (consumerContext, callback) => {
+const process = async (consumerContext, callback) => {
 
     const { timeoutInSeconds, messageHandler, resolveOffset, heartbeat, message } = consumerContext;
 
@@ -142,4 +158,4 @@ const handle = async (consumerContext, callback) => {
     })
 };
 
-module.exports.handle = handle;
+module.exports.process = process;

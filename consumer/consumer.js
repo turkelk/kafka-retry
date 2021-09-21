@@ -6,7 +6,7 @@ const kafka = new Kafka({
 });
 
 const consumer = kafka.consumer({ groupId: 'test-group' });
-const consumerHandler = require('./manager');
+const processor = require('./processor');
 const config = { messageHandleTimeoutInSeconds: 20 };
 
 function sleep(ms) {
@@ -83,7 +83,7 @@ const handleMessage = async (message) => {
                     topic: batch.topic,
                     partition: batch.partition
                 }
-                consumerHandler.handle(consumerContext, (result) => {
+                processor.process(consumerContext, (result) => {
                     console.log("consumerHandler.handle is", result);
                 });
             }

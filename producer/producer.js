@@ -24,12 +24,11 @@ async function produce(message) {
 
 (async function sendMessage() {
     while (true) {
-        console.log("sending message");
         const random = Math.floor(Math.random() * messages.length);
         const message = messages[random];
         console.log("sending message", message);
         await produce(message);
-        await sleep(10000);
+        await sleep(5000);
     }
 })();
 

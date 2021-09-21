@@ -35,7 +35,7 @@ curl -X POST -H "Content-Type: application/json" --data '
      "collection":"retry",
      "key.converter": "org.apache.kafka.connect.storage.StringConverter",
      "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-     "value.converter.schemas.enable": "false",
+     "value.converter.schemas.enable": "false",    
      "mongo.errors.tolerance":"all",
      "mongo.errors.log.enable": "true",
      "errors.log.include.messages":"true",
@@ -54,7 +54,9 @@ curl -X POST -H "Content-Type: application/json" --data '
      "connection.uri":"mongodb://mongo1:27017",
      "topic.prefix":"mongo",
      "database":"test",
-     "collection":"retry"
+     "collection":"retry",
+     "publish.full.document.only": "false",
+     "pipeline":"[{\"$match\": {\"operationType\": \"delete\"}}]"
 }}' http://localhost:8083/connectors -w "\n"    
 
 sleep 2
@@ -63,6 +65,9 @@ curl -X GET "http://localhost:8083/connectors/" -w "\n"
 
 echo "Looking at data in 'db.retry':"
 docker-compose exec mongo1 /usr/bin/mongo --eval 'db.retry.find()'
+
+echo "Creating index on 'db.retry' collection for TTL:"
+docker-compose exec mongo1 /usr/bin/mongo --eval 'db.retry.createIndex( { "expireAt": 1 }, { expireAfterSeconds: 0 } )'
 
 
 echo -e '''
