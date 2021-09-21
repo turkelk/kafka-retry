@@ -39,7 +39,6 @@ curl -X POST -H "Content-Type: application/json" --data '
      "transforms": "TimestampConverter",
      "transforms.TimestampConverter.type": "org.apache.kafka.connect.transforms.TimestampConverter$Value",
      "transforms.TimestampConverter.target.type": "Date",     
-     "transforms.TimestampConverter.format": "yyyy-MM-dd'\''T'\''HH:mm:ss",
      "transforms.TimestampConverter.field": "expireAt",         
      "mongo.errors.tolerance":"all",
      "mongo.errors.log.enable": "true",
